@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Health))]
@@ -13,7 +13,7 @@ public class PlayerController : MonoBehaviour
 
     Vector3 velocity;
     float fixedZ;
-    Vector3 spawnPosition;
+    bool isDead;
 
     void Awake()
     {
@@ -21,18 +21,17 @@ public class PlayerController : MonoBehaviour
         health = GetComponent<Health>();
 
         fixedZ = transform.position.z;
-        spawnPosition = transform.position;
 
         health.OnDeath += OnDeath;
     }
 
     void Update()
     {
-        // TEST: recibir da�o con K
+        // TEST: daño manual
         if (Input.GetKeyDown(KeyCode.K))
-        {
             health.TakeDamage(1);
-        }
+
+        if (isDead) return;
 
         // Forzar 2.5D
         Vector3 p = transform.position;
@@ -56,6 +55,24 @@ public class PlayerController : MonoBehaviour
 
     void OnDeath()
     {
-        enabled = false;
+        isDead = true;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnPlayerDied();
+    }
+
+    // 🔹 ESTE MÉTODO ES EL QUE FALTABA
+    public void RespawnAt(Vector3 spawnPos)
+    {
+        isDead = false;
+
+        velocity = Vector3.zero;
+        fixedZ = spawnPos.z;
+        transform.position = spawnPos;
+
+        health.ResetHealth();
+
+        cc.enabled = false;
+        cc.enabled = true;
     }
 }
