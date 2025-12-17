@@ -16,18 +16,25 @@ public class Bullet : MonoBehaviour
 
     void Update()
     {
-        // Movimiento vectorial SOLO en X
         transform.position += direction * speed * Time.deltaTime;
     }
 
     void OnTriggerEnter(Collider other)
     {
-        Health h = other.GetComponent<Health>();
-        if (h != null)
+        // Golpea enemigos
+        if (other.CompareTag("Enemy"))
         {
-            h.TakeDamage(damage);
+            Health h = other.GetComponent<Health>();
+            if (h != null)
+                h.TakeDamage(damage);
+
+            Destroy(gameObject);
         }
 
-        Destroy(gameObject);
+        // Choca con paredes / piso
+        if (other.gameObject.layer == LayerMask.NameToLayer("Default"))
+        {
+            Destroy(gameObject);
+        }
     }
 }
