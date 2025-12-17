@@ -25,6 +25,12 @@ public class PlayerController : MonoBehaviour
         health.OnDeath += OnDeath;
     }
 
+    void OnDestroy()
+    {
+        if (health != null)
+            health.OnDeath -= OnDeath;
+    }
+
     void Update()
     {
         // TEST: daño manual
@@ -33,7 +39,7 @@ public class PlayerController : MonoBehaviour
 
         if (isDead) return;
 
-        // Forzar 2.5D
+        // Forzar 2.5D (bloquea el Z)
         Vector3 p = transform.position;
         p.z = fixedZ;
         transform.position = p;
@@ -46,33 +52,42 @@ public class PlayerController : MonoBehaviour
             velocity.y = -2f;
 
         if (grounded && Input.GetButtonDown("Jump"))
-            velocity += Vector3.up * jumpForce;
+            velocity.y = jumpForce;
 
         velocity += Physics.gravity * Time.deltaTime;
 
-        cc.Move((move + velocity) * Time.deltaTime);
+        // Move = m/s, velocity = m/s -> multiplicamos por dt una sola vez
+        cc.Move((move + new Vector3(0f, velocity.y, 0f)) * Time.deltaTime);
     }
 
     void OnDeath()
     {
         isDead = true;
 
+        // Si vas a respawnear desde GameManager, NO destruyas acá
         if (GameManager.Instance != null)
             GameManager.Instance.OnPlayerDied();
+
+        // Si quisieras que se destruya en vez de respawn:
+        // Destroy(gameObject);
     }
 
-    // 🔹 ESTE MÉTODO ES EL QUE FALTABA
     public void RespawnAt(Vector3 spawnPos)
     {
         isDead = false;
 
+        // Importante: desactivar CC antes de teletransportar
+        cc.enabled = false;
+
         velocity = Vector3.zero;
         fixedZ = spawnPos.z;
+
+        spawnPos.z = fixedZ;
         transform.position = spawnPos;
 
+        // Esto requiere que exista en tu Health
         health.ResetHealth();
 
-        cc.enabled = false;
         cc.enabled = true;
     }
 }
