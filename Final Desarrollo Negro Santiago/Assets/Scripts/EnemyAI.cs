@@ -1,116 +1,102 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Health))]
 public class EnemyAI : MonoBehaviour
 {
-    [Header("Theme / Flavor (para el examen)")]
-    public string enemyThemeName = "Stalker"; // Cambialo a la temática del parcial
+    [Header("Patrol (MegaMan)")]
+    public float patrolSpeed = 2f;
+    public float leftX = -2f;
+    public float rightX = 2f;
 
-    [Header("Movement")]
-    public float moveSpeed = 3.5f;
-    public float detectRange = 10f;   // si el player entra acá, lo persigue
-    public float stopDistance = 1.6f; // a esta distancia deja de avanzar (para atacar)
-
-    [Header("Attack")]
-    public int damage = 1;
-    public float attackRange = 1.8f;
-    public float attackCooldown = 0.8f;
-
-    CharacterController cc;
-    Health health;
+    [Header("Vision & Shoot")]
+    public float visionRange = 6f;
+    public float shootInterval = 1.2f;
+    public GameObject bulletPrefab;
+    public Transform shootPoint;
 
     Transform player;
-    Health playerHealth;
+    Health health;
 
+    float shootTimer;
+    int dir = 1; // 1 right, -1 left
     float fixedZ;
-    float nextAttackTime;
-    bool isDead;
 
     void Awake()
     {
-        cc = GetComponent<CharacterController>();
         health = GetComponent<Health>();
+        health.OnDeath += Die;
 
         fixedZ = transform.position.z;
-
-        health.OnDeath += OnDeath;
     }
 
     void Start()
     {
-        // Busca al player por Tag. Asegurate que tu Player tenga Tag "Player".
         GameObject p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null)
-        {
-            player = p.transform;
-            playerHealth = p.GetComponent<Health>();
-        }
+        if (p != null) player = p.transform;
     }
 
     void Update()
     {
-        if (isDead) return;
-        if (player == null) return;
-
-        // Forzar 2.5D: Enemy también clavado en Z
+        // lock Z (evita “por atrás”)
         Vector3 pos = transform.position;
         pos.z = fixedZ;
         transform.position = pos;
 
-        float dist = Vector3.Distance(transform.position, player.position);
-
-        // Si está lejos, no hace nada (queda “al acecho”)
-        if (dist > detectRange)
-            return;
-
-        // Moverse hacia el player solo por X
-        float dirX = Mathf.Sign(player.position.x - transform.position.x);
-
-        // Si está suficientemente cerca, atacar
-        if (dist <= attackRange)
+        if (player == null)
         {
-            TryAttack();
+            Patrol();
             return;
         }
 
-        // Si está entre detectRange y stopDistance, perseguir
-        if (dist > stopDistance)
+        // Si el player está dentro de rango horizontal: se frena y dispara
+        float dx = player.position.x - transform.position.x;
+        bool inRange = Mathf.Abs(dx) <= visionRange;
+
+        if (inRange)
         {
-            Vector3 move = new Vector3(dirX, 0f, 0f) * moveSpeed;
-            cc.Move(move * Time.deltaTime);
+            // “Mira” al player (solo cambia el lado de disparo)
+            dir = (dx >= 0f) ? 1 : -1;
+
+            shootTimer -= Time.deltaTime;
+            if (shootTimer <= 0f)
+            {
+                Shoot();
+                shootTimer = shootInterval;
+            }
+        }
+        else
+        {
+            Patrol();
         }
     }
 
-    void TryAttack()
+    void Patrol()
     {
-        if (Time.time < nextAttackTime) return;
-        nextAttackTime = Time.time + attackCooldown;
+        Vector3 p = transform.position;
+        p.x += dir * patrolSpeed * Time.deltaTime;
 
-        if (playerHealth != null && !playerHealth.IsDead)
+        if (p.x <= leftX) { p.x = leftX; dir = 1; }
+        if (p.x >= rightX) { p.x = rightX; dir = -1; }
+
+        transform.position = p;
+    }
+
+    void Shoot()
+    {
+        if (bulletPrefab == null || shootPoint == null) return;
+
+        GameObject b = Instantiate(bulletPrefab, shootPoint.position, Quaternion.identity);
+
+        Bullet bullet = b.GetComponent<Bullet>();
+        if (bullet != null)
         {
-            playerHealth.TakeDamage(damage);
+            Vector3 d = (dir == 1) ? Vector3.right : Vector3.left;
+            bullet.Init(d, fixedZ);
         }
     }
 
-    void OnDeath()
+    void Die()
     {
-        isDead = true;
-
-        // Para que deje de “interactuar” con todo al morir:
-        // - Apagamos el CharacterController para que no empuje
-        cc.enabled = false;
-
-        // Si querés que desaparezca:
-        Destroy(gameObject, 0.25f);
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, detectRange);
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        Destroy(gameObject);
     }
 }

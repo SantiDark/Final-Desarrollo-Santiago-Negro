@@ -3,14 +3,13 @@ using UnityEngine;
 
 public class Health : MonoBehaviour
 {
-    [Header("Health")]
     public int maxHealth = 5;
     public int currentHealth;
 
-    public bool IsDead { get; private set; }
-
+    public event Action<int, int> OnHealthChanged; // current, max
     public event Action OnDeath;
-    public event Action<int, int> OnHealthChanged;
+
+    bool dead;
 
     void Awake()
     {
@@ -19,30 +18,23 @@ public class Health : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        if (IsDead) return;
-        if (amount <= 0) return;
+        if (dead) return;
 
         currentHealth -= amount;
-        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+        if (currentHealth < 0) currentHealth = 0;
 
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
         if (currentHealth <= 0)
-            Die();
+        {
+            dead = true;
+            OnDeath?.Invoke();
+        }
     }
 
-    void Die()
-    {
-        if (IsDead) return;
-
-        IsDead = true;
-        OnDeath?.Invoke();
-    }
-
-    // 🔹 ESTE MÉTODO ES EL QUE FALTABA
     public void ResetHealth()
     {
-        IsDead = false;
+        dead = false;
         currentHealth = maxHealth;
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }

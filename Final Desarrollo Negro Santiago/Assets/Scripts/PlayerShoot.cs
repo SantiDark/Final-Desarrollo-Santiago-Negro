@@ -3,40 +3,34 @@ using UnityEngine;
 public class PlayerShoot : MonoBehaviour
 {
     [Header("Shoot")]
-    public Bullet bulletPrefab;
+    public GameObject bulletPrefab;
     public Transform shootPoint;
     public float shootCooldown = 0.2f;
 
-    float nextShootTime;
-    int facing = 1; // 1 = derecha, -1 = izquierda
+    float cd;
 
     void Update()
     {
-        // Detectar hacia dónde mira el player según input
-        float x = Input.GetAxisRaw("Horizontal");
-        if (x > 0.1f) facing = 1;
-        else if (x < -0.1f) facing = -1;
+        if (cd > 0f) cd -= Time.deltaTime;
 
-        if (Time.time < nextShootTime) return;
-
-        // Disparo tipo Mega Man
-        if (Input.GetKey(KeyCode.Z))
+        if (Input.GetButton("Fire1") && cd <= 0f)
         {
             Shoot();
-            nextShootTime = Time.time + shootCooldown;
+            cd = shootCooldown;
         }
     }
 
     void Shoot()
     {
-        if (!bulletPrefab || !shootPoint) return;
+        if (bulletPrefab == null || shootPoint == null) return;
 
-        // Instanciar bala
-        Bullet b = Instantiate(bulletPrefab, shootPoint.position, Quaternion.identity);
+        GameObject b = Instantiate(bulletPrefab, shootPoint.position, Quaternion.identity);
 
-        // Dirección SOLO en X
-        Vector3 dir = (facing == 1) ? Vector3.right : Vector3.left;
+        float x = Input.GetAxisRaw("Horizontal");
+        Vector3 dir = (x < 0f) ? Vector3.left : Vector3.right;
 
-        b.Init(dir);
+        Bullet bullet = b.GetComponent<Bullet>();
+        if (bullet != null)
+            bullet.Init(dir, transform.position.z);
     }
 }

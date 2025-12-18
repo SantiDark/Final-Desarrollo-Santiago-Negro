@@ -1,56 +1,67 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
+    public static GameManager Instance;
 
-    [Header("References")]
-    public PlayerController player;
+    [Header("Respawn")]
+    public Transform playerSpawn;
 
-    Vector3 playerSpawnPos;
+    bool paused;
+    PlayerController player;
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
+        if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }
 
     void Start()
     {
-        if (!player)
-            player = FindFirstObjectByType<PlayerController>();
-
-        if (player)
-            playerSpawnPos = player.transform.position;
+        FindPlayer();
     }
 
     void Update()
     {
-        // Respawn del jugador con valores iniciales
-        if (Input.GetKeyDown(KeyCode.F1))
-        {
-            RespawnPlayer();
-        }
+        if (Input.GetKeyDown(KeyCode.Escape))
+            TogglePause();
+
+        if (Input.GetKeyDown(KeyCode.F2))
+            RestartScene();
     }
 
     public void OnPlayerDied()
     {
-        // "Muere" => lo desactivamos (más seguro que Destroy para poder respawnear)
-        if (player)
-            player.gameObject.SetActive(false);
+        // Respawn simple después de 1s
+        Invoke(nameof(RespawnPlayer), 1f);
     }
 
     void RespawnPlayer()
     {
-        if (!player) return;
+        FindPlayer();
+        if (player == null || playerSpawn == null) return;
 
-        player.gameObject.SetActive(true);
-        player.RespawnAt(playerSpawnPos);
+        player.RespawnAt(playerSpawn.position);
+    }
+
+    void FindPlayer()
+    {
+        GameObject p = GameObject.FindGameObjectWithTag("Player");
+        if (p != null) player = p.GetComponent<PlayerController>();
+    }
+
+    void TogglePause()
+    {
+        paused = !paused;
+        Time.timeScale = paused ? 0f : 1f;
+    }
+
+    void RestartScene()
+    {
+        Time.timeScale = 1f;
+        Scene scene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(scene.buildIndex);
     }
 }

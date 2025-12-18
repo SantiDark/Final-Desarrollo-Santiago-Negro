@@ -22,24 +22,14 @@ public class PlayerController : MonoBehaviour
 
         fixedZ = transform.position.z;
 
-        health.OnDeath += OnDeath;
-    }
-
-    void OnDestroy()
-    {
-        if (health != null)
-            health.OnDeath -= OnDeath;
+        health.OnDeath += HandleDeath;
     }
 
     void Update()
     {
-        // TEST: daño manual
-        if (Input.GetKeyDown(KeyCode.K))
-            health.TakeDamage(1);
-
         if (isDead) return;
 
-        // Forzar 2.5D (bloquea el Z)
+        // 2.5D: lock Z
         Vector3 p = transform.position;
         p.z = fixedZ;
         transform.position = p;
@@ -52,42 +42,36 @@ public class PlayerController : MonoBehaviour
             velocity.y = -2f;
 
         if (grounded && Input.GetButtonDown("Jump"))
-            velocity.y = jumpForce;
+            velocity += Vector3.up * jumpForce;
 
         velocity += Physics.gravity * Time.deltaTime;
 
-        // Move = m/s, velocity = m/s -> multiplicamos por dt una sola vez
-        cc.Move((move + new Vector3(0f, velocity.y, 0f)) * Time.deltaTime);
+        cc.Move((move + velocity) * Time.deltaTime);
     }
 
-    void OnDeath()
+    void HandleDeath()
     {
         isDead = true;
 
-        // Si vas a respawnear desde GameManager, NO destruyas acá
+        // Opcional: desactivar movimiento instantáneamente
+        velocity = Vector3.zero;
+
         if (GameManager.Instance != null)
             GameManager.Instance.OnPlayerDied();
-
-        // Si quisieras que se destruya en vez de respawn:
-        // Destroy(gameObject);
     }
 
     public void RespawnAt(Vector3 spawnPos)
     {
         isDead = false;
 
-        // Importante: desactivar CC antes de teletransportar
-        cc.enabled = false;
-
         velocity = Vector3.zero;
         fixedZ = spawnPos.z;
 
-        spawnPos.z = fixedZ;
+        // Reset de CC
+        cc.enabled = false;
         transform.position = spawnPos;
-
-        // Esto requiere que exista en tu Health
-        health.ResetHealth();
-
         cc.enabled = true;
+
+        health.ResetHealth();
     }
 }

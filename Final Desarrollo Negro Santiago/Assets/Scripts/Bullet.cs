@@ -1,40 +1,79 @@
 using UnityEngine;
 
+[RequireComponent(typeof(SphereCollider))]
+[RequireComponent(typeof(Rigidbody))]
 public class Bullet : MonoBehaviour
 {
+    [Header("Bullet")]
     public float speed = 12f;
     public float lifeTime = 2f;
     public int damage = 1;
 
-    Vector3 direction;
+    Vector3 dir;
+    float fixedZ;
+    bool initialized;
 
-    public void Init(Vector3 dir)
+    void Reset()
     {
-        direction = dir.normalized;
-        Destroy(gameObject, lifeTime);
+        // Auto-config al agregar el script
+        SphereCollider col = GetComponent<SphereCollider>();
+        col.isTrigger = true;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.isKinematic = true;
+        rb.interpolation = RigidbodyInterpolation.None;
+        rb.collisionDetectionMode = CollisionDetectionMode.Discrete;
+    }
+
+    void OnEnable()
+    {
+        Invoke(nameof(Kill), lifeTime);
+    }
+
+    void OnDisable()
+    {
+        CancelInvoke();
+        initialized = false;
+    }
+
+    public void Init(Vector3 direction, float zPlane)
+    {
+        dir = direction.normalized;
+        fixedZ = zPlane;
+        initialized = true;
+
+        // Asegura 2.5D al nacer
+        Vector3 p = transform.position;
+        p.z = fixedZ;
+        transform.position = p;
     }
 
     void Update()
     {
-        transform.position += direction * speed * Time.deltaTime;
+        if (!initialized) return;
+
+        transform.position += dir * speed * Time.deltaTime;
+
+        Vector3 p = transform.position;
+        p.z = fixedZ;
+        transform.position = p;
     }
 
     void OnTriggerEnter(Collider other)
     {
-        // Golpea enemigos
-        if (other.CompareTag("Enemy"))
-        {
-            Health h = other.GetComponent<Health>();
-            if (h != null)
-                h.TakeDamage(damage);
+        if (other.CompareTag("Player")) return;
 
-            Destroy(gameObject);
-        }
-
-        // Choca con paredes / piso
-        if (other.gameObject.layer == LayerMask.NameToLayer("Default"))
+        Health h = other.GetComponentInParent<Health>();
+        if (h != null)
         {
-            Destroy(gameObject);
+            h.TakeDamage(damage);
+            Kill();
         }
+    }
+
+    void Kill()
+    {
+        Destroy(gameObject);
     }
 }
